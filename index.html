@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mario - Yurish, Sakrash va O'tirish</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .game-container {
+            text-align: center;
+        }
+
+        canvas {
+            background: linear-gradient(to bottom, #5c94fc 0%, #5c94fc 70%, #68a000 70%, #68a000 100%);
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: block;
+        }
+
+        .controls-info {
+            color: #fff;
+            margin-top: 15px;
+            font-size: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        span {
+            color: #f8b800;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+        <div class="controls-info">
+            Boshqarish: <span>A / D</span> yoki <span>Strelkalar</span> (Yurish) | <span>W / Space</span> (Sakrash) | <span>S</span> (O'tirish)
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // O'yin fizikasi va qahramon parametrlari
+        const GRAVITY = 0.6;
+
+        class Player {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 32;
+                this.height = 48;
+                this.vx = 0;
+                this.vy = 0;
+                this.speed = 4;
+                this.jumpPower = -11;
+                this.grounded = false;
+                this.isCrouching = false;
+                this.facing = 'right';
+            }
+
+            update(platforms) {
+                // O'tirish holati (Bo'yi qisqaradi)
+                if (this.isCrouching && this.grounded) {
+                    this.height = 28;
+                } else {
+                    this.height = 48;
+                }
+
+                // Gravitatsiya ta'siri
+                this.vy += GRAVITY;
+
+                // Gorizontal harakat va to'qnashuv
+                this.x += this.vx;
+                this.checkHorizontalCollisions(platforms);
+
+                // Vertikal harakat va to'qnashuv
+                this.y += this.vy;
+                this.grounded = false;
+                this.checkVerticalCollisions(platforms);
+
+                // Ekran chegarasidan chiqib ketmaslik
+                if (this.x < 0) this.x = 0;
+                if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
+            }
+
+            checkHorizontalCollisions(platforms) {
+                for (let p of platforms) {
+                    if (this.intersects(p)) {
+                        if (this.vx > 0) { // O'ngga urilganda
+                            this.x = p.x - this.width;
+                        } else if (this.vx < 0) { // Chapga urilganda
+                            this.x = p.x + p.width;
+                        }
+                    }
+                }
+            }
+
+            checkVerticalCollisions(platforms) {
+                for (let p of platforms) {
+                    if (this.intersects(p)) {
+                        if (this.vy > 0) { // Pastga tushib yerga turganda
+                            this.y = p.y - this.height;
+                            this.vy = 0;
+                            this.grounded = true;
+                        } else if (this.vy < 0) { // Tepaga sakrab to'siqqa urilganda
+                            this.y = p.y + p.height;
+                            this.vy = 0;
+                        }
+                    }
+                }
+            }
+
+            intersects(rect) {
+                return (
+                    this.x < rect.x + rect.width &&
+                    this.x + this.width > rect.x &&
+                    this.y < rect.y + rect.height &&
+                    this.y + this.height > rect.y
+                );
+            }
+
+            jump() {
+                if (this.grounded && !this.isCrouching) {
+                    this.vy = this.jumpPower;
+                    this.grounded = false;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                
+                // Qizil shapkali Mario uslubidagi qahramon tanasi
+                // Oyoqlar / Kombinezon
+                ctx.fillStyle = '#0051e8'; // Ko'k kombinezon
+                ctx.fillRect(this.x + 4, this.y + this.height - 18, this.width - 8, 18);
+
+                // Ko'ylak (Qizil)
+                ctx.fillStyle = '#ff2200';
+                ctx.fillRect(this.x + 4, this.y + 12, this.width - 8, this.height - 24);
+
+                // Bosh va yuz
+                ctx.fillStyle = '#ffccaa';
+                ctx.fillRect(this.x + 6, this.y + 2, 20, 16);
+
+                // Kepka (Qizil)
+                ctx.fillStyle = '#ff2200';
+                ctx.fillRect(this.x + 4, this.y, 24, 6);
+                if (this.facing === 'right') {
+                    ctx.fillRect(this.x + 18, this.y - 2, 10, 4);
+                } else {
+                    ctx.fillRect(this.x + 4, this.y - 2, 10, 4);
+                }
+
+                // Mo'ylov
+                ctx.fillStyle = '#442200';
+                if (this.facing === 'right') {
+                    ctx.fillRect(this.x + 16, this.y + 10, 8, 3);
+                } else {
+                    ctx.fillRect(this.x + 8, this.y + 10, 8, 3);
+                }
+
+                ctx.restore();
+            }
+        }
+
+        // Platformalar ro'yxati (Yer va to'siqlar)
+        const platforms = [
+            { x: 0, y: 340, width: 800, height: 60 }, // Asosiy yer
+            { x: 300, y: 240, width: 120, height: 20 }, // Yuqori platforma 1
+            { x: 500, y: 160, width: 140, height: 20 }, // Yuqori platforma 2
+            { x: 150, y: 200, width: 100, height: 20 }  // Yuqori platforma 3
+        ];
+
+        const player = new Player(100, 250);
+
+        // Tugmalar boshqaruvi
+        const keys = {};
+
+        window.addEventListener("keydown", (e) => {
+            keys[e.code] = true;
+
+            if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") {
+                player.jump();
+            }
+        });
+
+        window.addEventListener("keyup", (e) => {
+            keys[e.code] = false;
+        });
+
+        // Harakatlarni boshqarish mantiqi
+        function handleInput() {
+            player.vx = 0;
+            player.isCrouching = false;
+
+            if (keys["ArrowLeft"] || keys["KeyA"]) {
+                player.vx = -player.speed;
+                player.facing = 'left';
+            }
+            if (keys["ArrowRight"] || keys["KeyD"]) {
+                player.vx = player.speed;
+                player.facing = 'right';
+            }
+            if (keys["ArrowDown"] || keys["KeyS"]) {
+                player.isCrouching = true;
+            }
+        }
+
+        // O'yin sikli (Game Loop)
+        function gameLoop() {
+            // Ekranni tozalash
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Kirish tugmalarini tekshirish
+            handleInput();
+
+            // Qahramonni yangilash
+            player.update(platforms);
+
+            // Platformalarni chizish
+            ctx.fillStyle = '#228B22'; // O'tloq rangi
+            for (let p of platforms) {
+                ctx.fillRect(p.x, p.y, p.width, p.height);
+                // Qirralari
+                ctx.strokeStyle = '#004400';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(p.x, p.y, p.width, p.height);
+            }
+
+            // Qahramonni chizish
+            player.draw();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // O'yinni boshlash
+        gameLoop();
+    </script>
+</body>
+</html>
